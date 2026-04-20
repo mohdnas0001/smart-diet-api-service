@@ -1,0 +1,3 @@
+# Smart Diet API Service
+
+Initializing repository...
