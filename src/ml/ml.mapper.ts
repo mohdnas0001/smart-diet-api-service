@@ -1,0 +1,154 @@
+import {
+  DetectedFood,
+  NormalizedAnalysisResult,
+  NutrientBreakdown,
+} from '../analysis/interfaces/analysis-result.interface';
+
+const numberKeys = [
+  'calories',
+  'protein',
+  'carbohydrates',
+  'carbs',
+  'fat',
+  'fiber',
+  'sugar',
+  'sodium',
+] as const;
+
+const toNumber = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  return undefined;
+};
+
+const toObject = (value: unknown): Record<string, unknown> | undefined => {
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+
+  return undefined;
+};
+
+const normalizeNutrients = (value: unknown): NutrientBreakdown => {
+  const source = toObject(value);
+  if (!source) {
+    return {};
+  }
+
+  return Object.entries(source).reduce<NutrientBreakdown>(
+    (accumulator, [key, entryValue]) => {
+      const normalizedValue = toNumber(entryValue);
+      if (normalizedValue !== undefined) {
+        const normalizedKey = key === 'carbs' ? 'carbohydrates' : key;
+        accumulator[normalizedKey] = normalizedValue;
+      }
+
+      return accumulator;
+    },
+    {},
+  );
+};
+
+const extractFoods = (payload: Record<string, unknown>): DetectedFood[] => {
+  const candidates = [
+    payload.foods,
+    payload.detectedFoods,
+    payload.predictions,
+    payload.results,
+  ];
+  const foodList = candidates.find(Array.isArray);
+  if (!Array.isArray(foodList)) {
+    return [];
+  }
+
+  return foodList
+    .map<DetectedFood | null>((item) => {
+      if (typeof item === 'string') {
+        return { name: item };
+      }
+
+      const record = toObject(item);
+      if (!record) {
+        return null;
+      }
+
+      const nutrients = normalizeNutrients(
+        record.nutrients ?? record.nutrition,
+      );
+      const label =
+        (typeof record.name === 'string' && record.name) ||
+        (typeof record.label === 'string' && record.label) ||
+        (typeof record.food === 'string' && record.food) ||
+        'Unknown food';
+
+      return {
+        name: label,
+        confidence: toNumber(record.confidence),
+        portion:
+          typeof record.portion === 'string' ? record.portion : undefined,
+        calories: toNumber(record.calories ?? nutrients.calories),
+        nutrients,
+      };
+    })
+    .filter((item): item is DetectedFood => item !== null);
+};
+
+const sumNutrients = (foods: DetectedFood[]): NutrientBreakdown => {
+  return foods.reduce<NutrientBreakdown>((accumulator, food) => {
+    const nutrients = food.nutrients ?? {};
+    for (const key of Object.keys(nutrients)) {
+      const nutrientValue = nutrients[key];
+      if (nutrientValue !== undefined) {
+        accumulator[key] = (accumulator[key] ?? 0) + nutrientValue;
+      }
+    }
+
+    if (food.calories !== undefined) {
+      accumulator.calories = (accumulator.calories ?? 0) + food.calories;
+    }
+
+    return accumulator;
+  }, {});
+};
+
+export const normalizeMlResponse = (
+  payload: unknown,
+): NormalizedAnalysisResult => {
+  const normalizedPayload = toObject(payload) ?? {};
+  const detectedFoods = extractFoods(normalizedPayload);
+  const payloadNutrients = normalizeNutrients(
+    normalizedPayload.nutrients ?? normalizedPayload.nutrition,
+  );
+  const foodsNutrients = sumNutrients(detectedFoods);
+
+  const nutrients: NutrientBreakdown = {
+    ...foodsNutrients,
+    ...payloadNutrients,
+  };
+  for (const key of numberKeys) {
+    if (key in foodsNutrients && !(key in nutrients)) {
+      nutrients[key === 'carbs' ? 'carbohydrates' : key] =
+        foodsNutrients[key === 'carbs' ? 'carbohydrates' : key];
+    }
+  }
+
+  const totalCalories =
+    toNumber(normalizedPayload.totalCalories) ??
+    toNumber(normalizedPayload.calories) ??
+    nutrients.calories ??
+    0;
+
+  return {
+    detectedFoods,
+    nutrients,
+    totalCalories,
+    rawMlResponse: normalizedPayload,
+  };
+};
