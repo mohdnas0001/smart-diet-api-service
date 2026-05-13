@@ -1,0 +1,6 @@
+@SmartDietApi_HostAddress = http://localhost:5240
+
+GET {{SmartDietApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

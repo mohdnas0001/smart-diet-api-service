@@ -1,0 +1,28 @@
+# .NET build output
+bin/
+obj/
+
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
+
+# User-specific files
+*.user
+*.suo
+.vs/
+
+# Environment / secrets
+.env
+
+# Uploaded images (generated at runtime)
+SmartDietApi/wwwroot/uploads/
+
+# Rider / JetBrains
+.idea/
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store

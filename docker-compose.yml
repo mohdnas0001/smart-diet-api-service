@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  smart-diet-api:
+    build:
+      context: ./SmartDietApi
+      dockerfile: Dockerfile
+    container_name: smart-diet-api
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Jwt__Secret=${JWT_SECRET:-CHANGE_ME_32_CHAR_MIN_RANDOM_KEY!!}
+      - Jwt__Issuer=${JWT_ISSUER:-SmartDietApi}
+      - Jwt__Audience=${JWT_AUDIENCE:-SmartDietApp}
+      - MlService__Url=${ML_SERVICE_URL:-http://ml-service:8000}
+      - Database__Path=/data/smartdiet.db
+    volumes:
+      - api-data:/data
+      - uploads:/app/wwwroot/uploads
+    depends_on:
+      - ml-service
+    restart: unless-stopped
+
+  ml-service:
+    image: python:3.11-slim
+    container_name: smart-diet-ml
+    # Replace with your actual ML service image / build context:
+    # build:
+    #   context: ../smart-diet-ml-service
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "pip install fastapi uvicorn && uvicorn main:app --host 0.0.0.0 --port 8000"
+    restart: unless-stopped
+
+volumes:
+  api-data:
+  uploads:
