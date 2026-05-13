@@ -4,17 +4,6 @@ import {
   NutrientBreakdown,
 } from '../analysis/interfaces/analysis-result.interface';
 
-const numberKeys = [
-  'calories',
-  'protein',
-  'carbohydrates',
-  'carbs',
-  'fat',
-  'fiber',
-  'sugar',
-  'sodium',
-] as const;
-
 const toNumber = (value: unknown): number | undefined => {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
@@ -132,12 +121,6 @@ export const normalizeMlResponse = (
     ...foodsNutrients,
     ...payloadNutrients,
   };
-  for (const key of numberKeys) {
-    if (key in foodsNutrients && !(key in nutrients)) {
-      nutrients[key === 'carbs' ? 'carbohydrates' : key] =
-        foodsNutrients[key === 'carbs' ? 'carbohydrates' : key];
-    }
-  }
 
   const totalCalories =
     toNumber(normalizedPayload.totalCalories) ??
