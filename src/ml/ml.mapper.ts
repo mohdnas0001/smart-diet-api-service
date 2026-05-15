@@ -81,7 +81,7 @@ const extractFoods = (payload: Record<string, unknown>): DetectedFood[] => {
         record.nutrients ?? record.nutrition,
       );
       const calories = toNumber(record.calories ?? nutrients.calories);
-      if (calories !== undefined && nutrients.calories === undefined) {
+      if (calories !== undefined) {
         nutrients.calories = calories;
       }
       const label =
