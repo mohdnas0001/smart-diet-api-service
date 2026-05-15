@@ -24,6 +24,7 @@ describe('normalizeMlResponse', () => {
         portion: undefined,
         calories: 200,
         nutrients: {
+          calories: 200,
           protein: 4,
           carbohydrates: 45,
         },

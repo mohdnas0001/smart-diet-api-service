@@ -4,6 +4,14 @@ import {
   NutrientBreakdown,
 } from '../analysis/interfaces/analysis-result.interface';
 
+const NUTRIENT_KEY_ALIASES: Record<string, string> = {
+  carbs: 'carbohydrates',
+  total_carbs: 'carbohydrates',
+  total_fat: 'fat',
+  dietary_fiber: 'fiber',
+  total_sugars: 'sugar',
+};
+
 const toNumber = (value: unknown): number | undefined => {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
@@ -35,18 +43,7 @@ const normalizeNutrients = (value: unknown): NutrientBreakdown => {
     (accumulator, [key, entryValue]) => {
       const normalizedValue = toNumber(entryValue);
       if (normalizedValue !== undefined) {
-        const normalizedKey =
-          key === 'carbs'
-            ? 'carbohydrates'
-            : key === 'total_carbs'
-              ? 'carbohydrates'
-              : key === 'total_fat'
-                ? 'fat'
-                : key === 'dietary_fiber'
-                  ? 'fiber'
-                  : key === 'total_sugars'
-                    ? 'sugar'
-                    : key;
+        const normalizedKey = NUTRIENT_KEY_ALIASES[key] ?? key;
         accumulator[normalizedKey] = normalizedValue;
       }
 
@@ -83,6 +80,10 @@ const extractFoods = (payload: Record<string, unknown>): DetectedFood[] => {
       const nutrients = normalizeNutrients(
         record.nutrients ?? record.nutrition,
       );
+      const calories = toNumber(record.calories ?? nutrients.calories);
+      if (calories !== undefined && nutrients.calories === undefined) {
+        nutrients.calories = calories;
+      }
       const label =
         (typeof record.name === 'string' && record.name) ||
         (typeof record.label === 'string' && record.label) ||
@@ -98,7 +99,7 @@ const extractFoods = (payload: Record<string, unknown>): DetectedFood[] => {
             : toNumber(record.portion_grams) !== undefined
               ? `${toNumber(record.portion_grams)} g`
               : undefined,
-        calories: toNumber(record.calories ?? nutrients.calories),
+        calories,
         nutrients,
       };
     })
@@ -113,10 +114,6 @@ const sumNutrients = (foods: DetectedFood[]): NutrientBreakdown => {
       if (nutrientValue !== undefined) {
         accumulator[key] = (accumulator[key] ?? 0) + nutrientValue;
       }
-    }
-
-    if (food.calories !== undefined && nutrients.calories === undefined) {
-      accumulator.calories = (accumulator.calories ?? 0) + food.calories;
     }
 
     return accumulator;
