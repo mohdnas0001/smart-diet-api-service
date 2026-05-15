@@ -80,6 +80,7 @@ cp .env.example .env
 | `BCRYPT_SALT_ROUNDS` | Password hashing cost |
 | `ML_SERVICE_URL` | Base URL of the ML backend |
 | `ML_ANALYSIS_ENDPOINT` | ML image analysis endpoint path |
+| `ML_ANALYSIS_FILE_FIELD` | Multipart field name expected by ML endpoint |
 | `ML_SERVICE_TIMEOUT_MS` | ML request timeout in milliseconds |
 
 ## Local Setup
@@ -133,6 +134,23 @@ DB_DATABASE=smart_diet
 npm run start:dev
 ```
 
+### 5. Run with `smart-diet-ml-service` locally
+
+In `mohdnas0001/smart-diet-ml-service`:
+
+```bash
+cp .env.example .env
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Then keep API env values aligned:
+
+```bash
+ML_SERVICE_URL=http://localhost:8000
+ML_ANALYSIS_ENDPOINT=/api/predict
+ML_ANALYSIS_FILE_FIELD=file
+```
+
 Open:
 
 - API: `http://localhost:3000`
@@ -164,10 +182,10 @@ Open:
 
 The backend uses the `ml` module to call the external ML service with Axios via NestJS `HttpModule`.
 
-- Uploads are forwarded as multipart form data using the `image` field.
+- Uploads are forwarded as multipart form data using `ML_ANALYSIS_FILE_FIELD` (default: `file`).
 - Timeouts are configurable with `ML_SERVICE_TIMEOUT_MS`.
 - Upstream failures are converted into backend-friendly error responses.
-- The response normalizer accepts common shapes such as `foods`, `detectedFoods`, `predictions`, `nutrition`, and `nutrients`.
+- The response normalizer accepts common shapes such as `food_items` (`/api/predict`), `foods`, `detectedFoods`, `predictions`, `nutrition`, and `nutrients`.
 
 Example ML response shapes the backend can normalize:
 
@@ -193,11 +211,21 @@ or
 
 ```json
 {
-  "predictions": ["banana", "apple"],
-  "nutrition": {
-    "calories": 180,
-    "fiber": 7
-  }
+  "analysis_id": "uuid-here",
+  "food_items": [
+    {
+      "name": "jollof_rice",
+      "confidence": 0.92,
+      "portion_grams": 320.5,
+      "nutrients": {
+        "calories": 538.4,
+        "carbohydrates": 87.4,
+        "protein": 12.2,
+        "total_fat": 16.6
+      }
+    }
+  ],
+  "total_calories": 538.4
 }
 ```
 

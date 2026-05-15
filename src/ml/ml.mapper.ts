@@ -4,6 +4,14 @@ import {
   NutrientBreakdown,
 } from '../analysis/interfaces/analysis-result.interface';
 
+const NUTRIENT_KEY_ALIASES: Record<string, string> = {
+  carbs: 'carbohydrates',
+  total_carbs: 'carbohydrates',
+  total_fat: 'fat',
+  dietary_fiber: 'fiber',
+  total_sugars: 'sugar',
+};
+
 const toNumber = (value: unknown): number | undefined => {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
@@ -35,7 +43,7 @@ const normalizeNutrients = (value: unknown): NutrientBreakdown => {
     (accumulator, [key, entryValue]) => {
       const normalizedValue = toNumber(entryValue);
       if (normalizedValue !== undefined) {
-        const normalizedKey = key === 'carbs' ? 'carbohydrates' : key;
+        const normalizedKey = NUTRIENT_KEY_ALIASES[key] ?? key;
         accumulator[normalizedKey] = normalizedValue;
       }
 
@@ -49,6 +57,7 @@ const extractFoods = (payload: Record<string, unknown>): DetectedFood[] => {
   const candidates = [
     payload.foods,
     payload.detectedFoods,
+    payload.food_items,
     payload.predictions,
     payload.results,
   ];
@@ -68,9 +77,15 @@ const extractFoods = (payload: Record<string, unknown>): DetectedFood[] => {
         return null;
       }
 
-      const nutrients = normalizeNutrients(
+      const baseNutrients = normalizeNutrients(
         record.nutrients ?? record.nutrition,
       );
+      const calories = toNumber(record.calories ?? baseNutrients.calories);
+      const portionGrams = toNumber(record.portion_grams);
+      const nutrients =
+        calories !== undefined && baseNutrients.calories === undefined
+          ? { ...baseNutrients, calories }
+          : baseNutrients;
       const label =
         (typeof record.name === 'string' && record.name) ||
         (typeof record.label === 'string' && record.label) ||
@@ -81,8 +96,12 @@ const extractFoods = (payload: Record<string, unknown>): DetectedFood[] => {
         name: label,
         confidence: toNumber(record.confidence),
         portion:
-          typeof record.portion === 'string' ? record.portion : undefined,
-        calories: toNumber(record.calories ?? nutrients.calories),
+          typeof record.portion === 'string'
+            ? record.portion
+            : portionGrams !== undefined
+              ? `${portionGrams} g`
+              : undefined,
+        calories,
         nutrients,
       };
     })
@@ -92,15 +111,19 @@ const extractFoods = (payload: Record<string, unknown>): DetectedFood[] => {
 const sumNutrients = (foods: DetectedFood[]): NutrientBreakdown => {
   return foods.reduce<NutrientBreakdown>((accumulator, food) => {
     const nutrients = food.nutrients ?? {};
-    for (const key of Object.keys(nutrients)) {
-      const nutrientValue = nutrients[key];
+    for (const [key, nutrientValue] of Object.entries(nutrients)) {
+      if (key === 'calories') {
+        continue;
+      }
+
       if (nutrientValue !== undefined) {
         accumulator[key] = (accumulator[key] ?? 0) + nutrientValue;
       }
     }
 
-    if (food.calories !== undefined) {
-      accumulator.calories = (accumulator.calories ?? 0) + food.calories;
+    const calorieValue = food.calories ?? nutrients.calories;
+    if (calorieValue !== undefined) {
+      accumulator.calories = (accumulator.calories ?? 0) + calorieValue;
     }
 
     return accumulator;
@@ -113,7 +136,9 @@ export const normalizeMlResponse = (
   const normalizedPayload = toObject(payload) ?? {};
   const detectedFoods = extractFoods(normalizedPayload);
   const payloadNutrients = normalizeNutrients(
-    normalizedPayload.nutrients ?? normalizedPayload.nutrition,
+    normalizedPayload.nutrients ??
+      normalizedPayload.nutrition ??
+      normalizedPayload.total_macronutrients,
   );
   const foodsNutrients = sumNutrients(detectedFoods);
 
@@ -124,6 +149,7 @@ export const normalizeMlResponse = (
 
   const totalCalories =
     toNumber(normalizedPayload.totalCalories) ??
+    toNumber(normalizedPayload.total_calories) ??
     toNumber(normalizedPayload.calories) ??
     nutrients.calories ??
     0;
