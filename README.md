@@ -90,23 +90,41 @@ cp .env.example .env
 npm install
 ```
 
-### 2. Start PostgreSQL
+### 2. Start PostgreSQL (Docker Compose)
 
-Example using Docker:
+This repository already includes `docker-compose.yml` with PostgreSQL and pgAdmin.
 
 ```bash
-docker run --name smart-diet-postgres \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=smart_diet \
-  -p 5432:5432 \
-  -d postgres:16
+docker compose up -d postgres
+```
+
+Optional (start pgAdmin too):
+
+```bash
+docker compose up -d
+```
+
+Useful checks:
+
+```bash
+docker compose ps
+docker compose logs -f postgres
 ```
 
 ### 3. Configure environment
 
 ```bash
 cp .env.example .env
+```
+
+Make sure these DB values remain aligned with `docker-compose.yml`:
+
+```bash
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=postgres
+DB_DATABASE=smart_diet
 ```
 
 ### 4. Run the API
@@ -120,6 +138,7 @@ Open:
 - API: `http://localhost:3000`
 - Swagger: `http://localhost:3000/docs`
 - Health check: `http://localhost:3000/health`
+- pgAdmin: `http://localhost:5050` (email: `admin@smartdiet.com`, password: `admin123`)
 
 ## API Overview
 
