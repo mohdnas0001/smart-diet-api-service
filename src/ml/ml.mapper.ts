@@ -81,6 +81,7 @@ const extractFoods = (payload: Record<string, unknown>): DetectedFood[] => {
         record.nutrients ?? record.nutrition,
       );
       const calories = toNumber(record.calories ?? baseNutrients.calories);
+      const portionGrams = toNumber(record.portion_grams);
       const nutrients =
         calories !== undefined && baseNutrients.calories === undefined
           ? { ...baseNutrients, calories }
@@ -97,8 +98,8 @@ const extractFoods = (payload: Record<string, unknown>): DetectedFood[] => {
         portion:
           typeof record.portion === 'string'
             ? record.portion
-            : toNumber(record.portion_grams) !== undefined
-              ? `${toNumber(record.portion_grams)} g`
+            : portionGrams !== undefined
+              ? `${portionGrams} g`
               : undefined,
         calories,
         nutrients,
@@ -110,11 +111,11 @@ const extractFoods = (payload: Record<string, unknown>): DetectedFood[] => {
 const sumNutrients = (foods: DetectedFood[]): NutrientBreakdown => {
   return foods.reduce<NutrientBreakdown>((accumulator, food) => {
     const nutrients = food.nutrients ?? {};
-    for (const key of Object.keys(nutrients)) {
+    for (const [key, nutrientValue] of Object.entries(nutrients)) {
       if (key === 'calories') {
         continue;
       }
-      const nutrientValue = nutrients[key];
+
       if (nutrientValue !== undefined) {
         accumulator[key] = (accumulator[key] ?? 0) + nutrientValue;
       }
