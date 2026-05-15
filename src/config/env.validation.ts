@@ -38,7 +38,8 @@ export function validateEnvironment(config: Record<string, unknown>) {
     JWT_REFRESH_EXPIRES_IN: environment.JWT_REFRESH_EXPIRES_IN ?? '7d',
     BCRYPT_SALT_ROUNDS: toNumber(environment.BCRYPT_SALT_ROUNDS, 10),
     ML_SERVICE_URL: environment.ML_SERVICE_URL,
-    ML_ANALYSIS_ENDPOINT: environment.ML_ANALYSIS_ENDPOINT ?? '/predict',
+    ML_ANALYSIS_ENDPOINT: environment.ML_ANALYSIS_ENDPOINT ?? '/api/predict',
+    ML_ANALYSIS_FILE_FIELD: environment.ML_ANALYSIS_FILE_FIELD ?? 'file',
     ML_SERVICE_TIMEOUT_MS: toNumber(environment.ML_SERVICE_TIMEOUT_MS, 15000),
   };
 }

@@ -35,7 +35,18 @@ const normalizeNutrients = (value: unknown): NutrientBreakdown => {
     (accumulator, [key, entryValue]) => {
       const normalizedValue = toNumber(entryValue);
       if (normalizedValue !== undefined) {
-        const normalizedKey = key === 'carbs' ? 'carbohydrates' : key;
+        const normalizedKey =
+          key === 'carbs'
+            ? 'carbohydrates'
+            : key === 'total_carbs'
+              ? 'carbohydrates'
+              : key === 'total_fat'
+                ? 'fat'
+                : key === 'dietary_fiber'
+                  ? 'fiber'
+                  : key === 'total_sugars'
+                    ? 'sugar'
+                    : key;
         accumulator[normalizedKey] = normalizedValue;
       }
 
@@ -49,6 +60,7 @@ const extractFoods = (payload: Record<string, unknown>): DetectedFood[] => {
   const candidates = [
     payload.foods,
     payload.detectedFoods,
+    payload.food_items,
     payload.predictions,
     payload.results,
   ];
@@ -81,7 +93,11 @@ const extractFoods = (payload: Record<string, unknown>): DetectedFood[] => {
         name: label,
         confidence: toNumber(record.confidence),
         portion:
-          typeof record.portion === 'string' ? record.portion : undefined,
+          typeof record.portion === 'string'
+            ? record.portion
+            : toNumber(record.portion_grams) !== undefined
+              ? `${toNumber(record.portion_grams)} g`
+              : undefined,
         calories: toNumber(record.calories ?? nutrients.calories),
         nutrients,
       };
@@ -99,7 +115,7 @@ const sumNutrients = (foods: DetectedFood[]): NutrientBreakdown => {
       }
     }
 
-    if (food.calories !== undefined) {
+    if (food.calories !== undefined && nutrients.calories === undefined) {
       accumulator.calories = (accumulator.calories ?? 0) + food.calories;
     }
 
@@ -113,7 +129,9 @@ export const normalizeMlResponse = (
   const normalizedPayload = toObject(payload) ?? {};
   const detectedFoods = extractFoods(normalizedPayload);
   const payloadNutrients = normalizeNutrients(
-    normalizedPayload.nutrients ?? normalizedPayload.nutrition,
+    normalizedPayload.nutrients ??
+      normalizedPayload.nutrition ??
+      normalizedPayload.total_macronutrients,
   );
   const foodsNutrients = sumNutrients(detectedFoods);
 
@@ -124,6 +142,7 @@ export const normalizeMlResponse = (
 
   const totalCalories =
     toNumber(normalizedPayload.totalCalories) ??
+    toNumber(normalizedPayload.total_calories) ??
     toNumber(normalizedPayload.calories) ??
     nutrients.calories ??
     0;
