@@ -112,4 +112,34 @@ describe('normalizeMlResponse', () => {
     });
     expect(result.totalCalories).toBe(538.4);
   });
+
+  it('backfills calories into nutrients when only record calories is present', () => {
+    const result = normalizeMlResponse({
+      foods: [
+        {
+          name: 'Beans',
+          calories: 150,
+          nutrients: {
+            protein: 10,
+          },
+        },
+      ],
+    });
+
+    expect(result.detectedFoods[0]).toEqual({
+      name: 'Beans',
+      confidence: undefined,
+      portion: undefined,
+      calories: 150,
+      nutrients: {
+        calories: 150,
+        protein: 10,
+      },
+    });
+    expect(result.nutrients).toEqual({
+      calories: 150,
+      protein: 10,
+    });
+    expect(result.totalCalories).toBe(150);
+  });
 });
